@@ -83,6 +83,8 @@ def api_token(request):
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """Управление пользователями."""
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (IsAdmin,)
@@ -181,6 +183,8 @@ class TitleViewSet(viewsets.ModelViewSet):
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    """Управление отзывами."""
+
     serializer_class = ReviewSerializer
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
@@ -200,6 +204,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
+    """Управление комментариями."""
+
     serializer_class = CommentSerializer
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
