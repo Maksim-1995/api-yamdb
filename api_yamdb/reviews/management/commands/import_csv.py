@@ -45,7 +45,7 @@ class Command(BaseCommand):
             filepath = path / filename
             if not filepath.is_file():
                 self.stdout.write(
-                    self.style.WARNING(f'Файл {filepath} не найден, пропускаем.')
+                    self.style.WARNING(f'Файл {filepath} не найден.')
                 )
                 continue
             model = self.get_model_for_file(filename)
