@@ -1,7 +1,12 @@
+from datetime import date
+
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from rest_framework import serializers
+
+from reviews.models import Category, Genre, Title, Review, Comment
 
 
 User = get_user_model()
@@ -52,12 +57,7 @@ class TokenSerializer(serializers.Serializer):
         username = data['username']
         confirmation_code = data['confirmation_code']
 
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            raise serializers.ValidationError(
-                f'Пользователь {username} не найден.'
-            )
+        user = get_object_or_404(User, username=username)
 
         if not default_token_generator.check_token(
             user,
@@ -104,7 +104,7 @@ class UserMeSerializer(serializers.ModelSerializer):
             'bio',
             'role',
         )
-        read_only = ('role',)
+        read_only_fields = ('role',)
 
     def validate_username(self, value):
         if value == 'me':
@@ -112,3 +112,124 @@ class UserMeSerializer(serializers.ModelSerializer):
                 f'Недопустимое имя пользователя: {value}.'
             )
         return value
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('name', 'slug')
+
+
+class GenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Genre
+        fields = ('name', 'slug')
+
+
+class TitleReadSerializer(serializers.ModelSerializer):
+    """Сериализатор для чтения произведений."""
+
+    genre = GenreSerializer(many=True, read_only=True)
+    category = CategorySerializer(read_only=True)
+    rating = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Title
+        fields = (
+            'id',
+            'name',
+            'year',
+            'rating',
+            'description',
+            'genre',
+            'category'
+        )
+
+
+class TitleWriteSerializer(serializers.ModelSerializer):
+    """Сериализатор для создания/обновления произведений."""
+
+    genre = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Genre.objects.all(),
+        many=True
+    )
+    category = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Category.objects.all()
+    )
+
+    class Meta:
+        model = Title
+        fields = (
+            'id',
+            'name',
+            'year',
+            'description',
+            'genre',
+            'category'
+        )
+
+    def validate_year(self, value):
+        current_year = date.today().year
+        if value > current_year:
+            raise serializers.ValidationError(
+                'Год выпуска не может быть больше текущего.'
+            )
+        return value
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+
+    class Meta:
+        model = Review
+        fields = (
+            'id',
+            'text',
+            'author',
+            'score',
+            'pub_date'
+        )
+        read_only_fields = (
+            'author',
+            'pub_date'
+        )
+
+    def validate(self, data):
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            title_id = self.context['view'].kwargs.get('title_id')
+
+            if Review.objects.filter(
+                title_id=title_id,
+                author=request.user
+            ).exists():
+                raise serializers.ValidationError(
+                    'Отзыв уже оставлен.'
+                )
+
+        return data
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True
+    )
+
+    class Meta:
+        model = Comment
+        fields = (
+            'id',
+            'text',
+            'author',
+            'pub_date'
+        )
+        read_only_fields = (
+            'author',
+            'pub_date'
+        )

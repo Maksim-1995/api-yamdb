@@ -1,6 +1,7 @@
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from api_yamdb.users.models import User
 from .constants import (
     NAME_MAX_LENGTH,
     SLUG_MAX_LENGTH,
@@ -82,3 +83,74 @@ class GenreTitle(models.Model):
                 name='unique_title_genre'
             )
         ]
+
+
+class Review(models.Model):
+    """Модель отзыва на произведение"""
+    title = models.ForeignKey(
+        Title,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Произведение'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Автор'
+    )
+    text = models.TextField(verbose_name='Текст отзыва')
+    score = models.PositiveSmallIntegerField(
+        verbose_name='Оценка', 
+        validators=(
+            MinValueValidator(1),
+            MaxValueValidator(10)
+        )
+    )
+    pub_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата публикации'
+    )
+
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        ordering = ('-pub_date',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=('title', 'author'),
+                name='unique_review'
+            )
+        ]
+
+    def __str__(self):
+        return self.text[:TEXT_LIMIT_FOR_REPR]
+
+
+class Comment(models.Model):
+    """Модель комментария к отзыву"""
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Отзыв'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор'
+    )
+    text = models.TextField(verbose_name='Текст комментария')
+    pub_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата публикации'
+    )
+
+    class Meta:
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+        ordering = ('-pub_date',)
+
+    def __str__(self):
+        return self.text[:TEXT_LIMIT_FOR_REPR]
