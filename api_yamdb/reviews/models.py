@@ -78,7 +78,7 @@ class Title(models.Model):
         related_name='titles',
         verbose_name='Жанр',
     )
-    
+
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
