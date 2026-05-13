@@ -12,7 +12,6 @@ from reviews.models import Category, Genre, Title, Review, Comment
 User = get_user_model()
 
 
-
 class BaseUserSerializer(serializers.Serializer):
     username = serializers.CharField(
         max_length=150,
@@ -34,11 +33,13 @@ class SignUpSerializer(BaseUserSerializer):
         username = data['username']
         email = data['email']
 
-        if User.objects.filter(username=username).exclude(email=email).exists():
+        if User.objects.filter(
+            username=username).exclude(email=email).exists():
             raise serializers.ValidationError(
                 f'Пользователь с именем {username} уже существует.'
             )
-        if User.objects.filter(email=email).exclude(username=username).exists():
+        if User.objects.filter(
+            email=email).exclude(username=username).exists():
             raise serializers.ValidationError(
                 f'Пользователь с почтой {email} уже существует.'
             )
