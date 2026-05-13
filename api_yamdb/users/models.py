@@ -4,6 +4,8 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 
 
 class User(AbstractUser):
+    """Модель пользователя с дополнительными полями."""
+
     USER = 'user'
     MODERATOR = 'moderator'
     ADMIN = 'admin'
@@ -45,3 +47,13 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+
+    @property
+    def is_admin(self):
+        """Пользователь с ролью admin или суперюзер."""
+        return self.role == self.ADMIN or self.is_superuser
+
+    @property
+    def is_moderator(self):
+        """Пользователь с ролью moderator (и не admin)."""
+        return self.role == self.MODERATOR
