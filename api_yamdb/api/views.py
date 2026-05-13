@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters, mixins
+from rest_framework.filters import OrderingFilter
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -37,52 +38,47 @@ User = get_user_model()
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def api_signup(request):
+    """Регистрация или повторная отправка кода подтверждения."""
     serializer = SignUpSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     username = serializer.validated_data['username']
     email = serializer.validated_data['email']
-
     user, _ = User.objects.get_or_create(
         username=username,
-        email=email,
+        defaults={'email': email}
     )
-
     confirmation_code = default_token_generator.make_token(user)
-
     send_mail(
         subject='YaMDb. Код подтверждения.',
         message=f'Код подтверждения: {confirmation_code}',
         from_email=None,
-        recipient_list=[email],
+        recipient_list=(email,),
         fail_silently=False,
     )
-
     return Response(
-        {
-            'email': email,
-            'username': username,
-        },
-        status=status.HTTP_200_OK,
+        {'email': email, 'username': username},
+        status=status.HTTP_200_OK
     )
-
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def api_token(request):
+    """Получение JWT-токена по username и коду подтверждения."""
     serializer = TokenSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    user = serializer.validated_data['user']
+    username = serializer.validated_data['username']
+    user = get_object_or_404(User, username=username)
     token = AccessToken.for_user(user)
-
-    return Response(
-        {
-            'token': str(token),
-        },
-        status=status.HTTP_200_OK,
-    )
+    return Response({'token': str(token)}, status=status.HTTP_200_OK)
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class BaseViewSet(viewsets.ModelViewSet):
+    """Базовый вьюсет."""
+
+    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
+
+
+class UserViewSet(BaseViewSet):
     """Управление пользователями."""
 
     queryset = User.objects.all()
@@ -91,7 +87,6 @@ class UserViewSet(viewsets.ModelViewSet):
     lookup_field = 'username'
     filter_backends = (filters.SearchFilter,)
     search_fields = ('username',)
-    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
 
     @action(
         detail=False,
@@ -142,7 +137,7 @@ class GenreViewSet(mixins.ListModelMixin,
     search_fields = ('name',)
 
 
-class TitleViewSet(viewsets.ModelViewSet):
+class TitleViewSet(BaseViewSet):
     """Управление произведениями."""
 
     queryset = Title.objects.annotate(
@@ -150,11 +145,12 @@ class TitleViewSet(viewsets.ModelViewSet):
     ).order_by('name')
     permission_classes = (IsAdminOrReadOnly,)
     filterset_class = TitleFilter
-    filter_backends = (DjangoFilterBackend,)
-    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
+    filter_backends = (DjangoFilterBackend, OrderingFilter,)
+    ordering_fields = ('name', 'year', 'rating')
+    ordering = ('name',)
 
     def get_serializer_class(self):
-        if self.action in ('list', 'retrieve'):
+        if self.action in {'list', 'retrieve'}:
             return TitleReadSerializer
         return TitleWriteSerializer
 
@@ -182,12 +178,11 @@ class TitleViewSet(viewsets.ModelViewSet):
         return Response(read_serializer.data)
 
 
-class ReviewViewSet(viewsets.ModelViewSet):
+class ReviewViewSet(BaseViewSet):
     """Управление отзывами."""
 
     serializer_class = ReviewSerializer
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
-    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
 
     def get_title(self):
         return get_object_or_404(Title, id=self.kwargs.get('title_id'))
@@ -203,12 +198,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
         )
 
 
-class CommentViewSet(viewsets.ModelViewSet):
+class CommentViewSet(BaseViewSet):
     """Управление комментариями."""
 
     serializer_class = CommentSerializer
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
-    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
 
     def get_review(self):
         return get_object_or_404(

@@ -6,6 +6,7 @@ from .constants import (
     NAME_MAX_LENGTH,
     SLUG_MAX_LENGTH,
     TEXT_LIMIT_FOR_REPR,
+    MIN_YEAR
 )
 
 
@@ -58,7 +59,11 @@ class Title(models.Model):
         'Название',
         max_length=NAME_MAX_LENGTH
     )
-    year = models.PositiveSmallIntegerField('Год выпуска', db_index=True)
+    year = models.SmallIntegerField(
+        'Год выпуска',
+        db_index=True,
+        validators=(MinValueValidator(MIN_YEAR),)
+    )
     description = models.TextField('Описание', blank=True)
     category = models.ForeignKey(
         Category,
@@ -70,10 +75,9 @@ class Title(models.Model):
     )
     genre = models.ManyToManyField(
         Genre,
-        through='GenreTitle',
-        verbose_name='Жанры',
+        related_name='titles',
+        verbose_name='Жанр',
     )
-
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
@@ -83,25 +87,8 @@ class Title(models.Model):
         return self.name[:TEXT_LIMIT_FOR_REPR]
 
 
-class GenreTitle(models.Model):
-    """Промежуточная модель для связи Title и Genre."""
-
-    title = models.ForeignKey(Title, on_delete=models.CASCADE)
-    genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
-
-    class Meta:
-        verbose_name = 'Связь жанра и произведения'
-        verbose_name_plural = 'Связи жанров и произведений'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['title', 'genre'],
-                name='unique_title_genre'
-            )
-        ]
-
-
 class Review(models.Model):
-    """Модель отзыва на произведение"""
+    """Модель отзыва на произведение."""
 
     title = models.ForeignKey(
         Title,
@@ -125,7 +112,8 @@ class Review(models.Model):
     )
     pub_date = models.DateTimeField(
         auto_now_add=True,
-        verbose_name='Дата публикации'
+        verbose_name='Дата публикации',
+        db_index=True
     )
 
     class Meta:
@@ -144,7 +132,7 @@ class Review(models.Model):
 
 
 class Comment(models.Model):
-    """Модель комментария к отзыву"""
+    """Модель комментария к отзыву."""
 
     review = models.ForeignKey(
         Review,

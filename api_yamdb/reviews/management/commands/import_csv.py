@@ -10,14 +10,14 @@ from reviews.models import (
 from users.models import User
 
 
-FILE_ORDER = [
+FILE_ORDER = (
     'users.csv',
     'category.csv',
     'genre.csv',
     'titles.csv',
     'review.csv',
     'comments.csv',
-]
+)
 
 
 class Command(BaseCommand):
@@ -82,9 +82,10 @@ class Command(BaseCommand):
                 prepared = self.prepare_row(row, filename)
                 objs.append(model(**prepared))
             model.objects.bulk_create(objs, ignore_conflicts=True)
+            objects_count = len(objs)
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Успешно загружено {len(objs)} записей из {filename}'
+                    f'Успешно загружено {objects_count} записей из {filename}'
                 )
             )
 
@@ -154,9 +155,9 @@ class Command(BaseCommand):
                 except Title.DoesNotExist:
                     continue
                 genre_ids = [
-                    int(g.strip())
-                    for g in genre_field.split(',')
-                    if g.strip()
+                    int(genre_id_str.strip())
+                    for genre_id_str in genre_field.split(',')
+                    if genre_id_str.strip()
                 ]
                 genres = Genre.objects.filter(pk__in=genre_ids)
                 title.genre.set(genres)
